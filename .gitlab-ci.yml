@@ -1,0 +1,69 @@
+image: comp2300/comp2300-ci:2022.0.6
+
+stages:
+  - build
+  - test
+  - deploy
+
+build:
+  tags:
+    - comp2300
+  stage: build
+  script:
+    - make
+
+statement-of-originality:
+  stage: test
+  tags:
+    - comp2300
+  script:
+    - python3 /validate.py schema ./statement-of-originality.md https://comp.anu.edu.au/courses/comp2300/assets/schemas/statement-of-originality-md.json 
+
+design-proposal-wordcount:
+  stage: test
+  tags:
+    - comp2300
+  script:
+    - echo "Word Count:"
+    - var="$(cat design-proposal.md | wc -w)"
+    - > 
+      if (( $var > 25)); then
+      exit 0 ;
+      else
+      echo "Your proposal should be more than 25 words!";
+      exit 1;
+      fi
+
+design-document-wordcount:
+  stage: test
+  tags:
+    - comp2300
+  script:
+    - echo "Word Count:"
+    - var="$(cat design-document.md | wc -w)"
+    - > 
+      if (( $var > 50)); then
+      exit 0 ;
+      else
+      echo "Your report should be more than 50 words!";
+      exit 1;
+      fi
+
+design-document:
+  stage: deploy
+  image:
+    name: pandoc/core:2.17.1.1-alpine
+    entrypoint: ["/bin/sh", "-c"]
+  tags:
+    - comp2300
+  variables:
+    DESIGN_DOC_OUTPUT: '$CI_PROJECT_NAME-$CI_PROJECT_NAMESPACE-designdoc.html'
+    ARTIFACT_URL: 'https://gitlab.cecs.anu.edu.au/$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME/-/jobs/artifacts/main/raw/$CI_PROJECT_NAME-$CI_PROJECT_NAMESPACE-designdoc.html?job=design-document'
+  script:
+    - pandoc --standalone --self-contained --number-sections --output=$DESIGN_DOC_OUTPUT design-document.md
+    - echo "Your design doc can be found at this URL"
+    - echo "$ARTIFACT_URL"
+  artifacts:
+    paths: 
+      - $DESIGN_DOC_OUTPUT
+  allow_failure: true
